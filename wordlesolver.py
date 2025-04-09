@@ -1,7 +1,12 @@
+import Levenshtein
+import pandas as pd
+from pandas import DataFrame
+
+
 class WordleSolver:
     def __init__(self, all_wordlist, previous_wordlist = 'word_lists\\used_words.txt', guesses=None):
 
-        self.answer = {1: '', 2: '', 3: '', 4: '', 5: ''}
+        self.answer = '-----'
         self.known_letters = list()
         self.excluded_letters = list()
 
@@ -30,7 +35,7 @@ class WordleSolver:
             if word not in self.used_wordlist:
                 self.possible_words.append(word)
 
-    def add_guess(self, guess: str, known_letters: list = None, wrong_letters: list = None, correct_letters: dict = None):
+    def add_guess(self, guess: str, known_letters: list = None, wrong_letters: list = None, correct_letters: str = None):
         assert len(guess) == 5
 
         if (guess not in self.used_wordlist) and (guess not in self.guesses):
@@ -58,9 +63,14 @@ class WordleSolver:
                         continue
 
 
-    def update_answer(self, correct_letters: dict = None):
+    def update_answer(self, correct_letters: str = None):
+        curr_answer_list = self.answer.split('')
         if correct_letters is not None:
-            self.answer.update(correct_letters)
+            correct_list = correct_letters.split('')
+            for letter in correct_list:
+                if letter != '-':
+                    curr_answer_list[correct_list.index(letter)] = letter
+            self.answer = ''.join(curr_answer_list)
             print(f'Updated answer to: {self.answer}')
         else:
             print(f'No values to update in answer.')
@@ -83,10 +93,23 @@ class WordleSolver:
 
     def make_guess(self):
         """
+        OLD:
         based on possible words list and used words list as well as known letters and answer,
         compares possible words (excluding used words) with known letters and known letters in answer
         and returns a list of possible guesses (unordered).
+
+        NEW:
+        based on partial answer, returns top 5 most likely answers based on results of compare()ing
+        answer to all words in possible_words.
         """
+        most_likely = list()
+        compared = self.compare()
+        for i in range(5):
+            most_likely.append(compared.Comparisons.get(i))
+        return most_likely
+
+
+        #   Deprecated
         guess = self.possible_words
         full_answer = ''
         for char in self.answer:
@@ -101,6 +124,7 @@ class WordleSolver:
                         print(f'Removed {word} from possible guesses.(make_guess)') # For Testing Purposes
             return guess
 
+
     def take_input(self):
         guess = input('Guess: ')
         assert len(guess) == 5
@@ -111,6 +135,7 @@ class WordleSolver:
         for num in known_positions:
             if temp_answer.get(int(num)) == '':
                 temp_answer[int(num)] = guess[int(num)-1].lower()
+        # Above 4 lines need to be updated to work with self.answer being a string.
         print(f'Known letters: {known_letters}\nWrong letters: {wrong_letters}\nKnown positions: {known_positions}\nAnswer: {temp_answer}')
         #   Above line is for testing purposes
         self.add_guess(guess, known_letters, wrong_letters, temp_answer)
@@ -122,10 +147,36 @@ class WordleSolver:
             if char == '':
                 return False
             else:
-                answer_word += self.answer.get(char)
+                answer_word += self.answer.get(char) # Update to work with self.answer as string.
         if answer_word in self.possible_words:
             return True
 
+    def compare(self, guess: str = None, compare_vals: list[str] = None) -> DataFrame:
+        """
+        Takes in a guess and a list of comparison values and calculates the levenshtein distance
+        between the two and returns a dataframe ordered by highest to lowest distance between guess
+        and comparison value
+
+        :param compare_vals: list[str] of values to compare against guess to find most similar
+        :param guess: 5 char string (with unknowns as -) to compare against list of comparison values
+        :return percent_similar: DataFrame
+        """
+        if guess is None:
+            guess = ''
+            for v in self.answer:
+                if v == '':
+                    guess += '-'
+                else:
+                    guess += self.answer.get(v) # Update to work with self.answer as a string.
+        if compare_vals is None:
+            compare_vals = self.possible_words
+
+        compare_vals.insert(0, guess)
+        percent_similar = pd.DataFrame()
+        percent_similar['Comparisons'] = compare_vals
+        percent_similar['Similarity'] = Levenshtein.ratio(guess, percent_similar['Comparisons'])
+        percent_similar.sort_values(by='Comparisons', ascending=False, inplace=True)
+        return percent_similar
 
 
     def __str__(self) -> str:
@@ -135,6 +186,7 @@ def main():
     wordle_solver = WordleSolver('word_lists\\all_possible_words.txt')
     while not wordle_solver.check_answer():
         wordle_solver.take_input()
+        print(wordle_solver.make_guess())
         print(wordle_solver)
 
 
