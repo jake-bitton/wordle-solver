@@ -5,7 +5,7 @@ import re
 
 
 class WordleSolver:
-    def __init__(self, all_wordlist, previous_wordlist = 'word_lists\\used_words.txt', guesses=None):
+    def __init__(self, all_wordlist, previous_wordlist='word_lists\\used_words.txt', guesses=None):
 
         self.answer = '-----'
         self.known_letters = list()
@@ -36,7 +36,12 @@ class WordleSolver:
             if word not in self.used_wordlist:
                 self.possible_words.append(word)
 
-    def add_guess(self, guess: str, known_letters: list = None, wrong_letters: list = None, correct_letters: str = None):
+    def add_guess(
+            self,
+            guess: str,
+            known_letters: list = None,
+            wrong_letters: list = None,
+            correct_letters: str = None):
         assert len(guess) == 5
 
         if (guess not in self.used_wordlist) and (guess not in self.guesses):
@@ -53,7 +58,6 @@ class WordleSolver:
                         self.possible_words.remove(word)
                     except ValueError:
                         continue
-
 
     def update_answer(self, correct_letters: str = None):
         curr_answer_list = [char for char in self.answer]
@@ -83,7 +87,7 @@ class WordleSolver:
         else:
             print(f'No values to update in excluded letters.')
 
-    def make_guess(self, num_words = 5):
+    def make_guess(self, num_words=5):
         """
         OLD:
         based on possible words list and used words list as well as known letters and answer,
@@ -99,23 +103,6 @@ class WordleSolver:
         most_likely = self.drop_invalid_rows(compared)
         return most_likely[0:num_words]
 
-
-        #   Deprecated
-        guess = self.possible_words
-        full_answer = ''
-        for char in self.answer:
-            full_answer += self.answer.get(char)
-        if full_answer == '':
-            return guess
-        else:
-            for word in self.possible_words:
-                for i, letter in enumerate(word.split()):
-                    if self.answer.get(i) != '' and letter != self.answer.get(i):
-                        self.possible_words.remove(word)
-                        print(f'Removed {word} from possible guesses.(make_guess)') # For Testing Purposes
-            return guess
-
-
     def take_input(self):
         guess = input('Guess: ')
         assert len(guess) == 5
@@ -127,7 +114,9 @@ class WordleSolver:
             if temp_answer[int(num)-1] == '-':
                 temp_answer[int(num)-1] = guess[int(num)-1].lower()
         temp_answer = ''.join(temp_answer)
-        print(f'Known letters: {known_letters}\nWrong letters: {wrong_letters}\nKnown positions: {known_positions}\nAnswer: {temp_answer}')
+        print(
+            f'Known letters: {known_letters}\nWrong letters: {wrong_letters}\nKnown positions: {known_positions}\nAnswer: {temp_answer}'
+        )
         #   Above line is for testing purposes
         self.add_guess(guess, known_letters, wrong_letters, temp_answer)
         print(f'Added guess: {guess}')
@@ -220,16 +209,14 @@ class WordleSolver:
     def __str__(self) -> str:
         return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}\nPossible words:\n{self.make_guess(len(self.possible_words)-1)}'
 
+
 def main():
     wordle_solver = WordleSolver('word_lists\\all_possible_words.txt')
-
 
     while not wordle_solver.check_answer():
         wordle_solver.take_input()
         print(wordle_solver.make_guess())
         print(wordle_solver)
-
-
 
 
 if __name__ == '__main__':
