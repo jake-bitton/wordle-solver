@@ -1,6 +1,7 @@
 import Levenshtein
 import pandas as pd
 from pandas import DataFrame
+import re
 
 
 class WordleSolver:
@@ -43,13 +44,13 @@ class WordleSolver:
 
         self.update_answer(correct_letters)
         self.update_letters(known_letters, wrong_letters)
+        self.possible_words.pop(self.possible_words.index(guess))
 
         for word in self.possible_words:
             for letter in word:
                 if self.excluded_letters.__contains__(letter):
                     try:
                         self.possible_words.remove(word)
-                        print(f'Removed {word} from possible words. (add_guess, contains excluded letter)')  # For Testing Purposes
                     except ValueError:
                         continue
 
@@ -95,8 +96,8 @@ class WordleSolver:
         """
 
         compared = self.compare()
-        most_likely = compared.Comparisons[:num_words]
-        return most_likely
+        most_likely = self.drop_invalid_rows(compared)
+        return most_likely[0:num_words]
 
 
         #   Deprecated
@@ -165,6 +166,56 @@ class WordleSolver:
         percent_similar.sort_values(by='Similarity', ascending=False, inplace=True)
         return percent_similar
 
+    def drop_invalid_rows(self, df):
+        """
+        Drops rows from the DataFrame where any string value contains an excluded character.
+
+        Parameters:
+        df (pd.DataFrame): The input DataFrame.
+
+        Returns:
+        pd.DataFrame: DataFrame with rows containing excluded characters removed.
+        """
+        # Create a copy to avoid modifying the original DataFrame
+        df = df.copy()
+
+        # Handle case with no excluded or included characters
+        if not self.excluded_letters and not self.known_letters:
+            return df
+
+        # Identify string columns (object or string dtype)
+        string_cols = df.select_dtypes(include=['object', 'string']).columns.tolist()
+
+        # Initialize a boolean mask for rows to exclude (default False)
+        mask_excluded = pd.Series(False, index=df.index)
+        mask_missing_included = pd.Series(False, index=df.index)
+
+        # Process excluded characters
+        if self.excluded_letters:
+            # Create regex pattern to match any excluded character
+            excluded_pattern = r'[{}]'.format(''.join(re.escape(c) for c in self.excluded_letters))
+
+            for col in string_cols:
+                # Check if the column contains any excluded characters
+                mask_excluded |= df[col].str.contains(excluded_pattern, na=False, regex=True)
+
+        # Process included characters
+        if self.known_letters:
+            # Create regex pattern to ensure all included characters are present
+            included_pattern = r'^'
+            for c in self.known_letters:
+                included_pattern += r'(?=.*{})'.format(re.escape(c))
+            included_pattern += r'.*'
+
+            for col in string_cols:
+                # Check if the column does NOT contain all included characters
+                mask_missing_included |= ~df[col].str.contains(included_pattern, na=False, regex=True)
+
+        # Create a final mask with both masks
+        final_mask = mask_excluded | mask_missing_included
+
+        # Return DataFrame excluding rows where any string column contains excluded characters
+        return df[~final_mask]
 
     def __str__(self) -> str:
         return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}\nPossible words:\n{self.make_guess(len(self.possible_words)-1)}'
@@ -176,7 +227,7 @@ def main():
     while not wordle_solver.check_answer():
         wordle_solver.take_input()
         print(wordle_solver.make_guess())
-    print(wordle_solver)
+        print(wordle_solver)
 
 
 
