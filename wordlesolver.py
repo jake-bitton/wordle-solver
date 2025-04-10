@@ -35,6 +35,7 @@ class WordleSolver:
         for word in self.all_wordlist:
             if word not in self.used_wordlist:
                 self.possible_words.append(word)
+        self.possible_words.sort()
 
     def add_guess(
             self,
@@ -178,6 +179,7 @@ class WordleSolver:
         # Initialize a boolean mask for rows to exclude (default False)
         mask_excluded = pd.Series(False, index=df.index)
         mask_missing_included = pd.Series(False, index=df.index)
+        mask_missing_in_place = pd.Series(False, index=df.index)
 
         # Process excluded characters
         if self.excluded_letters:
@@ -200,14 +202,32 @@ class WordleSolver:
                 # Check if the column does NOT contain all included characters
                 mask_missing_included |= ~df[col].str.contains(included_pattern, na=False, regex=True)
 
-        # Create a final mask with both masks
-        final_mask = mask_excluded | mask_missing_included
+        # Process characters in known positions
+        answer_list = [char if char != '-' else None for char in self.answer]
+        # Construct the regex pattern based on check_list
+        pattern_parts = []
+        for char in answer_list:
+            if char is not None:
+                # Escape special regex characters
+                pattern_parts.append(re.escape(char))
+            else:
+                # Allow any character at this position
+                pattern_parts.append('.')
+        # Combine parts into regex pattern
+        regex_pattern = '^' + ''.join(pattern_parts)
+
+        # Create the mask using str.match, handling NaN values as False
+        for col in string_cols:
+            mask_missing_in_place = ~df[col].str.match(regex_pattern, na=False, case=False)
+
+        # Create a final mask with all masks
+        final_mask = mask_excluded | mask_missing_included | mask_missing_in_place
 
         # Return DataFrame excluding rows where any string column contains excluded characters
         return df[~final_mask]
 
     def __str__(self) -> str:
-        return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}\nPossible words:\n{self.make_guess(len(self.possible_words)-1)}'
+        return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}'
 
 
 def main():
