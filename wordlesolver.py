@@ -46,27 +46,18 @@ class WordleSolver:
 
         for word in self.possible_words:
             for letter in word:
-                if letter in self.excluded_letters:
+                if self.excluded_letters.__contains__(letter):
                     try:
                         self.possible_words.remove(word)
                         print(f'Removed {word} from possible words. (add_guess, contains excluded letter)')  # For Testing Purposes
                     except ValueError:
                         continue
 
-        for letter in self.known_letters:
-            for word in self.possible_words:
-                if letter not in word:
-                    try:
-                        self.possible_words.remove(word)
-                        print(f'Removed {word} from possible words. (add_guess, does not contain included letter)') # For Testing Purposes
-                    except ValueError:
-                        continue
-
 
     def update_answer(self, correct_letters: str = None):
-        curr_answer_list = self.answer.split('')
+        curr_answer_list = [char for char in self.answer]
         if correct_letters is not None:
-            correct_list = correct_letters.split('')
+            correct_list = [char for char in correct_letters]
             for letter in correct_list:
                 if letter != '-':
                     curr_answer_list[correct_list.index(letter)] = letter
@@ -91,7 +82,7 @@ class WordleSolver:
         else:
             print(f'No values to update in excluded letters.')
 
-    def make_guess(self):
+    def make_guess(self, num_words = 5):
         """
         OLD:
         based on possible words list and used words list as well as known letters and answer,
@@ -102,10 +93,9 @@ class WordleSolver:
         based on partial answer, returns top 5 most likely answers based on results of compare()ing
         answer to all words in possible_words.
         """
-        most_likely = list()
+
         compared = self.compare()
-        for i in range(5):
-            most_likely.append(compared.Comparisons.get(i))
+        most_likely = compared.Comparisons[:num_words]
         return most_likely
 
 
@@ -131,11 +121,11 @@ class WordleSolver:
         known_letters = list(input("Enter known letters (space delimited): ").split())
         wrong_letters = list(input("Enter wrong letters (space delimited): ").split())
         known_positions = list(input("Enter known positions (space delimited): ").split())
-        temp_answer = self.answer.copy()
+        temp_answer = [char for char in self.answer]
         for num in known_positions:
-            if temp_answer.get(int(num)) == '':
-                temp_answer[int(num)] = guess[int(num)-1].lower()
-        # Above 4 lines need to be updated to work with self.answer being a string.
+            if temp_answer[int(num)-1] == '-':
+                temp_answer[int(num)-1] = guess[int(num)-1].lower()
+        temp_answer = ''.join(temp_answer)
         print(f'Known letters: {known_letters}\nWrong letters: {wrong_letters}\nKnown positions: {known_positions}\nAnswer: {temp_answer}')
         #   Above line is for testing purposes
         self.add_guess(guess, known_letters, wrong_letters, temp_answer)
@@ -143,11 +133,11 @@ class WordleSolver:
 
     def check_answer(self):
         answer_word = ''
-        for char in self.answer:
-            if char == '':
+        for i, char in enumerate(self.answer):
+            if char == '-':
                 return False
             else:
-                answer_word += self.answer.get(char) # Update to work with self.answer as string.
+                answer_word += self.answer[i]
         if answer_word in self.possible_words:
             return True
 
@@ -162,32 +152,32 @@ class WordleSolver:
         :return percent_similar: DataFrame
         """
         if guess is None:
-            guess = ''
-            for v in self.answer:
-                if v == '':
-                    guess += '-'
-                else:
-                    guess += self.answer.get(v) # Update to work with self.answer as a string.
+            guess = self.answer
         if compare_vals is None:
             compare_vals = self.possible_words
 
-        compare_vals.insert(0, guess)
+        ratios = list()
+        for val in compare_vals:
+            ratios.append(Levenshtein.ratio(guess, val))
         percent_similar = pd.DataFrame()
         percent_similar['Comparisons'] = compare_vals
-        percent_similar['Similarity'] = Levenshtein.ratio(guess, percent_similar['Comparisons'])
-        percent_similar.sort_values(by='Comparisons', ascending=False, inplace=True)
+        percent_similar['Similarity'] = ratios
+        percent_similar.sort_values(by='Similarity', ascending=False, inplace=True)
         return percent_similar
 
 
     def __str__(self) -> str:
-        return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}\nPossible words: {self.make_guess()}'
+        return f'Guesses: {self.guesses}\nYou have {6 - len(self.guesses)} guesses remaining.\nKnown letters: {self.known_letters}\nExcluded letters: {self.excluded_letters}\nAnswer so far: {self.answer}\nPossible words:\n{self.make_guess(len(self.possible_words)-1)}'
 
 def main():
     wordle_solver = WordleSolver('word_lists\\all_possible_words.txt')
+
+
     while not wordle_solver.check_answer():
         wordle_solver.take_input()
         print(wordle_solver.make_guess())
-        print(wordle_solver)
+    print(wordle_solver)
+
 
 
 
