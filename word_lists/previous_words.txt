@@ -1388,3 +1388,9 @@ youth
 zebra
 zesty
 wheat
+turbo
+arrow
+nurse
+laugh
+crest
+ashen

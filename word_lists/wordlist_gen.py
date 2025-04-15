@@ -1,4 +1,4 @@
-def format_words(read_file, write_file = 'previous_words.txt'):
+def format_words(read_file, write_file='previous_words.txt'):
     f = open(read_file, 'r')
     words = f.read().strip().split()
     f.close()
@@ -8,8 +8,10 @@ def format_words(read_file, write_file = 'previous_words.txt'):
     w.close()
     print(f'Formatted words in {read_file}, wrote to {write_file}')
 
+
 def main():
     format_words('used_words.txt', 'word_lists\\previous_words.txt')
+
 
 if __name__ == '__main__':
     main()
